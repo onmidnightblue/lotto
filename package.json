@@ -6,22 +6,46 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check",
+    "format": "biome format",
+    "format:check": "biome format --check",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "drizzle:generate": "drizzle-kit generate:pg",
+    "drizzle:push": "drizzle-kit push"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "next": "16.1.4",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "@supabase/supabase-js": "^2.0.0",
+    "@tanstack/react-query": "^4.0.0",
+    "@trpc/client": "^11.0.0",
+    "@trpc/react-query": "^11.0.0",
+    "@trpc/server": "^11.0.0",
+    "drizzle-orm": "^0.22.0",
+    "drizzle-kit": "^0.3.0",
+    "drizzle-zod": "^0.1.0",
+    "next": "14",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "slonik": "^27.0.0",
+    "pg": "^8.0.0",
+    "supabase-js": "^2.0.0",
+    "tailwindcss": "^3.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^14.0.0",
+    "@types/node": "20.0.0",
+    "@types/react": "18.2.0",
+    "@types/react-dom": "18.2.0",
+    "biome": "^1.0.0",
+    "postcss": "^8.0.0",
+    "autoprefixer": "^10.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^0.34.0",
+    "vite-tsconfig-paths": "^4.0.0"
   }
 }

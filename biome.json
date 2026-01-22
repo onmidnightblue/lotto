@@ -1,0 +1,15 @@
+{
+  "format": {
+    "enabled": true
+  },
+  "lint": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "language": {
+    "javascript": { "enabled": true },
+    "typescript": { "enabled": true }
+  }
+}

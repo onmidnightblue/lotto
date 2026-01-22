@@ -1,9 +1,0 @@
-# Lotto Analysis Project Rules
-
-- Tech Stack: Next.js (App Router), TypeScript, Tailwind CSS, tRPC, Zod, TanStack Query.
-- Code Quality: Use Biome for linting and formatting. Do not use Prettier/ESLint.
-- Component Pattern: Use Lucide-react for icons. Create reusable UI components in @/components/ui.
-- Data Validation: Always use Zod for schema validation (both frontend and backend).
-- API Pattern: Use tRPC for all server communication.
-- Styling: Use Tailwind CSS with a mobile-first responsive design.
-- Naming: Use kebab-case for file names and PascalCase for React components.
