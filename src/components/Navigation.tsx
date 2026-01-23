@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 const navItems = [
   { href: '/history', label: '히스토리' },
   { href: '/analysis', label: '패턴분석' },
-  { href: '/prediction', label: '예상번호' },
   { href: '/generator', label: '랜덤생성' },
   { href: '/simulation', label: '타임머신' },
 ]

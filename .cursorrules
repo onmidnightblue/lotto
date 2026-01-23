@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 Please design and initialize the complete architecture based on these specifications.
 
 1. Tech Stack & InfrastructureCore: Next.js 14 (App Router)Language: TypeScript (Strict Mode)Styling: Tailwind CSS + shadcn/uiData: tRPC (Internal API), Zod (Validation), Drizzle ORM (PostgreSQL), TanStack Query (v5)Quality & Linting:Biome: Primary linter and formatter. (Note: Configure Next.js to skip default ESLint during builds to avoid conflicts).Testing: Vitest, React Testing Library (RTL)Database: Supabase (PostgreSQL)Package Manager: pnpm2. Requirements & File Structure@/lib/db: Initialize Drizzle schema for:lotto_win_results: Actual draw data (drw_no, numbers, date, etc.)analysis_results: Saved patterns or user-specific analysis.user_activity_logs: Simple logs for simulation attempts.@/lib/schema: Use drizzle-zod to export Zod schemas from DB tables for end-to-end type safety.@/server: Setup tRPC root, context, and routers:Routers: analysisRouter, simulationRouter, generatorRouter.@/app: Scaffold pages with Loading/Error boundaries:/analysis: Missing range tracking, co-occurrence patterns./simulation: 10-year backtest with ROI labels./generator: Filter-based generation (Sum range, Odd/Even).@/components: Modular UI components using Tailwind CSS and shadcn/ui.3. Core Logic & Performance Tasks[Analysis]:'Missing Range': Identify numbers not drawn for $X$ weeks.'Co-occurrence': Analyze which numbers appear together most frequently.Use Server Components for heavy data processing where possible.[Simulation]:'10-Year Backtest': Realistic ROI mapping (e.g., "-90% National Finance Supporter").Performance: Ensure simulation logic is optimized (consider heavy loops; use memoization).[Generator]:Filtering: Sum range (130-170), Odd/Even ratios (3:3, 2:4, 4:2).Presets: 'Balanced' (Standard filters) vs 'Aggressive' (Long-shot patterns).[Data]:Setup realistic mock data in @/mock/lottoHistory.ts.Optimization: If data exceeds 1,000 entries, split by year or use a light-weight JSON reference to keep the editor fast.4. Final Request & Execution PlanPlan: Provide a step-by-step file creation and configuration plan.Initialization Script: Generate a shell script to:Install all dependencies (drizzle-orm, postgres, @trpc/server, @trpc/client, @tanstack/react-query, zod, biome, etc.).Initialize biome.json and drizzle.config.ts.Setup .env.example (DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY).Boilerplate: Create the TrpcProvider, db client, and base layout so the project runs immediately with pnpm dev.Environment: Ensure the project respects existing .cursorrules and the src directory structure.
@@ -13,3 +14,45 @@ Please design and initialize the complete architecture based on these specificat
 - Styling: Use Tailwind CSS with a mobile-first responsive design.
 - Naming: Use kebab-case for file names and PascalCase for React components.
 >>>>>>> b9338fd (Initial commit: Next.js Boilerplate)
+=======
+# 프로젝트 성격: 로또 번호 통계 분석 및 패턴 예측 서비스
+
+## 기술 스택 (Tech Stack)
+- Framework: Next.js (App Router)
+- ORM: Drizzle ORM (PostgreSQL/Supabase)
+- Validation: Zod (drizzle-zod 활용)
+- Database: Supabase (PostgreSQL)
+
+## 핵심 도메인 지식 (Lotto Logic)
+1. 당첨 번호: 1~45 사이의 숫자 6개 (JSON 배열 `numbers`로 저장).
+2. 보너스 번호: 별도 컬럼 `bonus` (integer).
+3. 분석 단위: 
+   - 홀짝: 홀수와 짝수의 비율 (예: 3:3, 2:4).
+   - 고저: 1~22(저), 23~45(고)의 비율 (예: 3:3).
+   - 총합: 6개 당첨 번호의 합계.
+   - 멸구간: 특정 단위(10단위 등)에서 번호가 나오지 않은 상태.
+
+## 코딩 가이드라인 (Coding Rules)
+
+### 1. Schema & Validation
+- DB 스키마 수정 시 반드시 `src/db/schema.ts`를 기준으로 한다.
+- 사용자 입력값 검증이 필요한 경우 `drizzle-zod`의 `createInsertSchema`를 사용하여 Zod 스키마를 생성한다.
+- DB에 직접 데이터를 넣을 때는 Drizzle ORM의 타입 안정성을 최우선으로 한다.
+
+### 2. 성능 최적화 (Performance)
+- **실시간 계산 지양**: 3개/4개 번호 조합 빈도 같은 무거운 연산은 `analysis_result` 테이블에 미리 계산(Pre-calculation)된 데이터를 저장하고 조회하는 방식을 택한다.
+- **회차별 통계**: 홀짝, 고저, 총합 데이터는 `lotto_win_result` 테이블의 컬럼(`odd_count`, `even_count`, `high_count`, `low_count`, `total_sum`)에서 직접 조회하도록 구현한다.
+
+### 3. Git Workflow
+- 커밋 메시지는 Conventional Commits 형식을 따른다 (예: `feat:`, `fix:`, `refactor:`).
+- 기능 구현이 완료되면 자잘한 커밋들을 Squash Merge 할 수 있도록 논리적 단위로 코드를 작성한다.
+
+### 4. 패턴 분석 로직 구현 시 주의사항
+- "궁합 번호"는 2개 번호가 동시에 출현한 빈도가 높은 조합을 의미한다.
+- "원수 번호"는 함께 출현한 빈도가 가장 낮은 조합을 의미한다.
+- 모든 통계 쿼리는 최신 회차(ID 역순)를 기본 정렬값으로 설정한다.
+
+## AI 지시 사항 (Instructions)
+- 로직을 짤 때 연산량이 많아질 것 같으면 미리 계산된 테이블(`analysis_result`)을 사용할지 먼저 물어볼 것.
+- 새로운 분석 기능을 제안할 때는 로또 매니아들이 사용하는 용어(멸구간, 끝수, 고저 등)를 사용할 것.
+>>>>>>> b1c4bca (feat: 프리셋, 직접조정 번호 생성 및 UI 일부 개선)
