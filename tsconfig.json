@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["DOM", "ES2022"],
-    "jsx": "react-jsx",
+    "lib": [
+      "DOM",
+      "ES2022"
+    ],
+    "jsx": "preserve",
     "module": "ESNext",
     "moduleResolution": "Node",
     "strict": true,
@@ -10,11 +13,26 @@
     "skipLibCheck": true,
     "baseUrl": "src",
     "paths": {
-      "@/*": ["*"]
+      "@/*": [
+        "*"
+      ]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowJs": true,
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
