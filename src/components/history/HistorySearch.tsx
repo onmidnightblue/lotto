@@ -1,18 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { trpc } from '@/components/TrpcProvider'
+import { getBallColorClass } from '@/lib/utils/ballColors'
 
 export default function HistorySearch() {
   const [searchNumbers, setSearchNumbers] = useState<string>('')
-  const [period, setPeriod] = useState<'all' | '1year' | '6months' | '3months' | '1month' | 'custom'>('all')
-  const [prizeAmount, setPrizeAmount] = useState<'30억이상' | '20억대' | '10억대' | 'custom' | undefined>(undefined)
-  const [customPrizeMin, setCustomPrizeMin] = useState<string>('')
-  const [customPrizeMax, setCustomPrizeMax] = useState<string>('')
+  const [period, setPeriod] = useState<'all' | '1year' | '6months' | '3months' | '1month'>('all')
+  const [prizeAmount, setPrizeAmount] = useState<'30억이상' | '20억대' | '10억대' | undefined>(undefined)
   const [winnerCount, setWinnerCount] = useState<'10명이하' | '10명대' | '20명대' | '30명대' | undefined>(undefined)
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'prize-desc' | 'prize-asc' | 'winner-desc' | 'winner-asc'>('date-desc')
-  const [customStartDate, setCustomStartDate] = useState<string>('')
-  const [customEndDate, setCustomEndDate] = useState<string>('')
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false)
+  const sortDropdownRef = useRef<HTMLDivElement>(null)
 
   const parseNumbers = (input: string): number[] => {
     return input
@@ -23,14 +22,24 @@ export default function HistorySearch() {
 
   const numbers = parseNumbers(searchNumbers)
 
+  // 정렬 드롭다운 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setSortDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
   const { data, isLoading } = trpc.lotto.search.useQuery({
     numbers: numbers.length > 0 ? numbers : undefined,
     period,
-    customStartDate: period === 'custom' && customStartDate ? new Date(customStartDate) : undefined,
-    customEndDate: period === 'custom' && customEndDate ? new Date(customEndDate) : undefined,
     prizeAmount: prizeAmount,
-    customPrizeMin: prizeAmount === 'custom' && customPrizeMin ? parseInt(customPrizeMin.replace(/[,\s원억만]/g, '')) * (customPrizeMin.includes('억') ? 100000000 : 1) : undefined,
-    customPrizeMax: prizeAmount === 'custom' && customPrizeMax ? parseInt(customPrizeMax.replace(/[,\s원억만]/g, '')) * (customPrizeMax.includes('억') ? 100000000 : 1) : undefined,
     winnerCount: winnerCount,
     sortBy,
     limit: 100,
@@ -64,121 +73,232 @@ export default function HistorySearch() {
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">기간</label>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as any)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-          >
-            <option value="all">전체</option>
-            <option value="1year">최근 1년</option>
-            <option value="6months">최근 6개월</option>
-            <option value="3months">최근 3개월</option>
-            <option value="1month">최근 1개월</option>
-            <option value="custom">직접 설정</option>
-          </select>
-
-          {period === 'custom' && (
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">시작일</label>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="w-full px-3 py-1 border border-slate-300 rounded-md text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">종료일</label>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="w-full px-3 py-1 border border-slate-300 rounded-md text-sm"
-                />
-              </div>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setPeriod('all')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                period === 'all'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              전체
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod('1year')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                period === '1year'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              최근 1년
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod('6months')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                period === '6months'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              최근 6개월
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod('3months')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                period === '3months'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              최근 3개월
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriod('1month')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                period === '1month'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              최근 1개월
+            </button>
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">당첨금액</label>
-          <select
-            value={prizeAmount || ''}
-            onChange={(e) => setPrizeAmount(e.target.value ? (e.target.value as any) : undefined)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-          >
-            <option value="">전체</option>
-            <option value="30억이상">30억 이상</option>
-            <option value="20억대">20억대</option>
-            <option value="10억대">10억대</option>
-            <option value="custom">직접 설정</option>
-          </select>
-
-          {prizeAmount === 'custom' && (
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">최소 금액</label>
-                <input
-                  type="text"
-                  value={customPrizeMin}
-                  onChange={(e) => setCustomPrizeMin(e.target.value)}
-                  placeholder="예: 10억"
-                  className="w-full px-3 py-1 border border-slate-300 rounded-md text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">최대 금액</label>
-                <input
-                  type="text"
-                  value={customPrizeMax}
-                  onChange={(e) => setCustomPrizeMax(e.target.value)}
-                  placeholder="예: 50억"
-                  className="w-full px-3 py-1 border border-slate-300 rounded-md text-sm"
-                />
-              </div>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setPrizeAmount(undefined)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                prizeAmount === undefined
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              전체
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrizeAmount('30억이상')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                prizeAmount === '30억이상'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              30억 이상
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrizeAmount('20억대')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                prizeAmount === '20억대'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              20억대
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrizeAmount('10억대')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                prizeAmount === '10억대'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              10억대
+            </button>
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">당첨자수</label>
-          <select
-            value={winnerCount || ''}
-            onChange={(e) => setWinnerCount(e.target.value ? (e.target.value as any) : undefined)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-          >
-            <option value="">전체</option>
-            <option value="10명이하">10명 이하</option>
-            <option value="10명대">10명대</option>
-            <option value="20명대">20명대</option>
-            <option value="30명대">30명대</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">정렬</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-          >
-            <option value="date-desc">최신순</option>
-            <option value="date-asc">오래된순</option>
-            <option value="prize-desc">당첨금 높은순</option>
-            <option value="prize-asc">당첨금 낮은순</option>
-            <option value="winner-desc">당첨자 많은순</option>
-            <option value="winner-asc">당첨자 적은순</option>
-          </select>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setWinnerCount(undefined)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                winnerCount === undefined
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              전체
+            </button>
+            <button
+              type="button"
+              onClick={() => setWinnerCount('10명이하')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                winnerCount === '10명이하'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              10명 이하
+            </button>
+            <button
+              type="button"
+              onClick={() => setWinnerCount('10명대')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                winnerCount === '10명대'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              10명대
+            </button>
+            <button
+              type="button"
+              onClick={() => setWinnerCount('20명대')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                winnerCount === '20명대'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              20명대
+            </button>
+            <button
+              type="button"
+              onClick={() => setWinnerCount('30명대')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                winnerCount === '30명대'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              30명대
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">검색 결과</h2>
-          {data && (
-            <span className="text-sm text-slate-600">총 {data.total}개</span>
-          )}
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold">검색 결과</h2>
+            {data && (
+              <span className="text-sm text-slate-500">총 {data.total}개</span>
+            )}
+          </div>
+          <div className="relative" ref={sortDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+              className="px-3 py-1.5 text-sm rounded-md font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors flex items-center gap-1"
+            >
+              {[
+                { value: 'date-desc', label: '최신순' },
+                { value: 'date-asc', label: '오래된순' },
+                { value: 'prize-desc', label: '당첨금 높은순' },
+                { value: 'prize-asc', label: '당첨금 낮은순' },
+                { value: 'winner-desc', label: '당첨자 많은순' },
+                { value: 'winner-asc', label: '당첨자 적은순' },
+              ].find(opt => opt.value === sortBy)?.label || '최신순'}
+              <span className="text-xs">▾</span>
+            </button>
+            {sortDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-10 min-w-[140px]">
+                {[
+                  { value: 'date-desc', label: '최신순' },
+                  { value: 'date-asc', label: '오래된순' },
+                  { value: 'prize-desc', label: '당첨금 높은순' },
+                  { value: 'prize-asc', label: '당첨금 낮은순' },
+                  { value: 'winner-desc', label: '당첨자 많은순' },
+                  { value: 'winner-asc', label: '당첨자 적은순' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setSortBy(option.value as any)
+                      setSortDropdownOpen(false)
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors ${
+                      sortBy === option.value
+                        ? 'bg-slate-100 text-slate-900 font-medium'
+                        : 'text-slate-700'
+                    } ${option.value === 'date-desc' ? 'rounded-t-md' : ''} ${
+                      option.value === 'winner-asc' ? 'rounded-b-md' : ''
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -197,17 +317,10 @@ export default function HistorySearch() {
                   key={result.id}
                   className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <span className="text-sm text-slate-600">
-                        {drawDate.toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </span>
-                    </div>
-                    <div className="text-sm text-slate-500">회차 #{result.id}</div>
+                  <div className="mb-3">
+                    <span className="text-sm text-slate-600">
+                      #{result.id} ({drawDate.getFullYear()}.{String(drawDate.getMonth() + 1).padStart(2, '0')}.{String(drawDate.getDate()).padStart(2, '0')})
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2 mb-2">
@@ -221,7 +334,7 @@ export default function HistorySearch() {
                             className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
                               isHighlighted
                                 ? 'bg-yellow-400 text-slate-900 ring-2 ring-yellow-500'
-                                : 'bg-slate-200 text-slate-700'
+                                : getBallColorClass(num)
                             }`}
                           >
                             {num}
@@ -230,35 +343,28 @@ export default function HistorySearch() {
                       })}
                     </div>
                     <span className="text-sm text-slate-500 ml-2">
-                      보너스:{' '}
+                      +{' '}
                       <span
-                        className={
+                        className={`px-2 py-1 rounded font-semibold ${
                           highlightNumber(bonus, parseNumbers(searchNumbers))
-                            ? 'bg-yellow-400 text-slate-900 px-2 py-1 rounded font-semibold'
-                            : ''
-                        }
+                            ? 'bg-yellow-400 text-slate-900'
+                            : getBallColorClass(bonus)
+                        }`}
                       >
                         {bonus}
                       </span>
                     </span>
                   </div>
 
-                  {(result.prize_amount || result.winner_count) && (
-                    <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
-                      {result.prize_amount && (
-                        <span>
-                          당첨금액:{' '}
-                          <span className="font-semibold text-slate-900">
-                            {Math.round(result.prize_amount / 100000000)}억원
-                          </span>
+                  {(result.prize_amount && result.winner_count) && (
+                    <div className="text-sm text-slate-600 mt-2">
+                      <span>
+                        {result.winner_count}명이{' '}
+                        <span className="font-semibold text-slate-900">
+                          {Math.round(result.prize_amount / 100000000)}억원
                         </span>
-                      )}
-                      {result.winner_count && (
-                        <span>
-                          당첨자수:{' '}
-                          <span className="font-semibold text-slate-900">{result.winner_count}명</span>
-                        </span>
-                      )}
+                        을 수령했습니다.
+                      </span>
                     </div>
                   )}
                 </div>

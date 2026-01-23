@@ -81,11 +81,19 @@ export const lottoRouter = router({
 
       // 번호 검색 필터
       if (input.numbers && input.numbers.length > 0) {
-        // JSON 배열에 번호가 포함되어 있는지 확인
+        // JSON 배열에 모든 번호가 포함되어 있는지 확인 (AND 조건)
         const numberConditions = input.numbers.map((num) => {
           return sql`${lottoWinResult.numbers}::jsonb @> ${JSON.stringify([num])}::jsonb`
         })
-        conditions.push(or(...numberConditions) as any)
+        // 보너스 번호도 포함하여 검색
+        const bonusConditions = input.numbers.map((num) => {
+          return sql`${lottoWinResult.bonus} = ${num}`
+        })
+        // 모든 번호가 당첨번호 또는 보너스번호에 포함되어야 함
+        const allConditions = numberConditions.map((numCond, idx) => {
+          return or(numCond, bonusConditions[idx]) as any
+        })
+        conditions.push(and(...allConditions) as any)
       }
 
       // 당첨금액 필터

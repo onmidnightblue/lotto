@@ -14,7 +14,9 @@
     "test:coverage": "vitest --coverage",
     "drizzle:generate": "drizzle-kit generate:pg",
     "drizzle:push": "drizzle-kit push",
-    "db:seed": "tsx src/lib/db/seed.ts"
+    "db:seed": "tsx src/lib/db/seed.ts",
+    "db:update-patterns": "tsx src/lib/db/update-patterns.ts",
+    "db:calculate-combinations": "tsx src/lib/db/calculate-combinations.ts"
   },
   "engines": {
     "node": ">=18"
