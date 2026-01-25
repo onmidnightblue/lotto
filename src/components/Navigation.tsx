@@ -8,6 +8,7 @@ const navItems = [
   { href: '/analysis', label: '패턴분석' },
   { href: '/generator', label: '랜덤생성' },
   { href: '/simulation', label: '타임머신' },
+  { href: '/admin', label: '관리실' },
 ]
 
 export default function Navigation() {

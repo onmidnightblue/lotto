@@ -1,8 +1,8 @@
-import { pgTable, serial, integer, bigint, text, json, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, serial, integer, bigint, text, varchar, json, timestamp } from 'drizzle-orm/pg-core'
 
-// LottoWinResult: stores each draw
+// LottoWinResult: stores each draw (id = 회차 번호)
 export const lottoWinResult = pgTable('lotto_win_result', {
-  id: serial('id').primaryKey(),
+  id: serial('id').primaryKey(), // 회차 번호와 동일하게 사용 (insert 시 id 지정)
   draw_date: timestamp('draw_date').notNull(),
   numbers: json('numbers').$type<number[]>(),
   bonus: integer('bonus').notNull(),
@@ -44,5 +44,27 @@ export const combinationStats = pgTable('combination_stats', {
   count: integer('count').notNull(), // 출현 횟수
   rank: integer('rank').notNull(), // 순위 (1부터 시작)
   rounds: json('rounds').$type<number[]>(), // 해당 조합이 나온 회차 ID 배열
+  created_at: timestamp('created_at').defaultNow(),
+})
+
+// 등수별 당첨금
+export const lottoPrizeStats = pgTable('lotto_prize_stats', {
+  id: serial('id').primaryKey(),
+  draw_id: integer('draw_id').references(() => lottoWinResult.id),
+  rank: integer('rank').notNull(), // 1, 2, 3, 4, 5등
+  prize_per_person: bigint('prize_per_person', { mode: 'number' }).notNull(),
+  winner_count: integer('winner_count').notNull(),
+  total_prize: bigint('total_prize', { mode: 'number' }),
+  created_at: timestamp('created_at').defaultNow(),
+})
+
+// 당첨 판매점 정보
+export const lottoWinningStores = pgTable('lotto_winning_stores', {
+  id: serial('id').primaryKey(),
+  draw_id: integer('draw_id').references(() => lottoWinResult.id),
+  rank: integer('rank').default(1), // 주로 1, 2등 판매점
+  store_name: text('store_name').notNull(),
+  location: text('location'),
+  method: varchar('method', { length: 10 }), // 수동, 자동, 반자동
   created_at: timestamp('created_at').defaultNow(),
 })

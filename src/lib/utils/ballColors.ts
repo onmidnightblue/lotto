@@ -3,21 +3,15 @@
  */
 export function getBallColorClass(num: number): string {
   if (num >= 1 && num <= 10) {
-    // 노란색 (1-10)
-    return 'bg-[#FFCC00] text-black'
+    return 'bg-[#e08f00] text-white'   // 1~10
   } else if (num >= 11 && num <= 20) {
-    // 파란색 (11-20)
-    return 'bg-[#0099FF] text-white'
+    return 'bg-[#0063cc] text-white'   // 11~20
   } else if (num >= 21 && num <= 30) {
-    // 빨간색 (21-30)
-    return 'bg-[#FF3333] text-white'
+    return 'bg-[#d8314f] text-white'   // 21~30
   } else if (num >= 31 && num <= 40) {
-    // 회색 (31-40)
-    return 'bg-[#888888] text-white'
+    return 'bg-[#6e7382] text-white'   // 31~40
   } else if (num >= 41 && num <= 45) {
-    // 초록색 (41-45)
-    return 'bg-[#22CC22] text-white'
+    return 'bg-[#2c9e44] text-white'   // 41~45
   }
-  // 기본값
   return 'bg-slate-200 text-slate-700'
 }
