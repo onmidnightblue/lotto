@@ -1,5 +1,35 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Database (Drizzle)
+
+`.env`에 `DATABASE_URL`(PostgreSQL 연결 문자열)이 있어야 합니다.
+
+### 스키마 반영 (push)
+
+스키마 변경 후 DB에 그대로 반영할 때:
+
+```bash
+pnpm drizzle:push
+```
+
+### 시드
+
+- **당첨 회차·당첨금**: `pnpm db:seed-prizes` (lotto_prizes.json → lotto_win_result, lotto_prize_stats)
+- **당첨 판매점**: `pnpm db:seed-stores` (lotto_stores.csv → lotto_winning_stores, ltShpId 기준 upsert)
+
+### `lotto_winning_stores` 스키마를 바꾼 뒤 할 일
+
+1. 스키마 반영  
+   ```bash
+   pnpm drizzle:push
+   ```
+2. 판매점 시드 (기존 행은 ltShpId 기준으로 upsert)  
+   ```bash
+   pnpm db:seed-stores
+   ```
+
+---
+
 ## Getting Started
 
 First, run the development server:

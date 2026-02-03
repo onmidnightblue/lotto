@@ -1,8 +1,22 @@
 import { z } from 'zod'
 import { router, publicProcedure } from '../trpc'
 import { db } from '@/lib/db'
-import { lottoWinResult, combinationStats } from '@/lib/db/schema'
+import { prizes, numbers, combinationStats } from '@/lib/db/schema'
+import { mapLottoRow } from '@/lib/db/mapLottoRow'
 import { desc, eq, and, gte } from 'drizzle-orm'
+
+const joinedDraw = db
+  .select({
+    round: prizes.round,
+    draw_date: prizes.draw_date,
+    numbers: numbers.numbers,
+    bonus: numbers.bonus,
+    prize_1st: prizes.prize_1st,
+    count_1st: prizes.count_1st,
+    total_round_sales: prizes.total_round_sales,
+  })
+  .from(numbers)
+  .innerJoin(prizes, eq(numbers.round, prizes.round))
 
 // 번호대 구분 (1-10, 11-20, 21-30, 31-40, 41-45)
 function getNumberRange(num: number): number {
@@ -140,7 +154,7 @@ function generateNumbers(
         }
       }
       
-      // 균형형: 번호대 분산 체크
+      // 균형형: 번호대 분산, 끝수 합 15~35
       if (preset === 'balanced') {
         const ranges = new Set(temp.map(getNumberRange))
         if (ranges.size < 3) {
@@ -155,6 +169,10 @@ function generateNumbers(
           isValid = false
         }
         if (countConsecutive(temp) > 2) {
+          isValid = false
+        }
+        const endDigitSum = temp.reduce((a, b) => a + (b % 10), 0)
+        if (endDigitSum < 15 || endDigitSum > 35) {
           isValid = false
         }
       }
@@ -226,7 +244,7 @@ function generateNumbers(
         }
       }
       
-      // 균형형 최종 체크
+      // 균형형 최종 체크 (번호대, 끝수 합 15~35)
       if (preset === 'balanced') {
         const ranges = new Set(final.map(getNumberRange))
         if (ranges.size < 3) {
@@ -241,6 +259,10 @@ function generateNumbers(
           allValid = false
         }
         if (countConsecutive(final) > 2) {
+          allValid = false
+        }
+        const endDigitSum = final.reduce((a, b) => a + (b % 10), 0)
+        if (endDigitSum < 15 || endDigitSum > 35) {
           allValid = false
         }
       }
@@ -362,40 +384,30 @@ function generateNumbers(
           }
         }
         
-        // 균형형: 번호대 분산 최종 조정
+        // 균형형: 한 번호대 4개 이상이면 다른 번호대로 교체 (한 번호대당 최대 3개)
         if (preset === 'balanced') {
-          const ranges = new Set(final.map(getNumberRange))
-          if (ranges.size < 3) {
-            // 번호대가 3개 미만이면 조정
+          for (let adjustLoop = 0; adjustLoop < 6; adjustLoop++) {
             const rangeCounts = new Map<number, number>()
             final.forEach(n => {
               const r = getNumberRange(n)
               rangeCounts.set(r, (rangeCounts.get(r) || 0) + 1)
             })
-            
-            // 가장 많이 나온 번호대에서 하나를 다른 번호대로 교체
-            const maxRange = Array.from(rangeCounts.entries())
-              .sort((a, b) => b[1] - a[1])[0]?.[0]
-            
-            if (maxRange) {
-              const numInMaxRange = final.find(n => getNumberRange(n) === maxRange)
-              if (numInMaxRange) {
-                const targetRanges = [1, 2, 3, 4, 5].filter(r => r !== maxRange && !ranges.has(r))
-                if (targetRanges.length > 0) {
-                  const targetRange = targetRanges[0]
-                  const candidates = Array.from({ length: 45 }, (_, i) => i + 1)
-                    .filter(n => getNumberRange(n) === targetRange && !final.includes(n) && !excludeNumbers.includes(n))
-                  
-                  if (candidates.length > 0) {
-                    const replacement = candidates[Math.floor(Math.random() * candidates.length)]
-                    const index = final.indexOf(numInMaxRange)
-                    if (index !== -1) {
-                      final[index] = replacement
-                    }
-                  }
-                }
-              }
-            }
+            const maxRangeEntry = Array.from(rangeCounts.entries()).sort((a, b) => b[1] - a[1])[0]
+            if (maxRangeEntry == null || maxRangeEntry[1] <= 3) break
+
+            const maxRange = maxRangeEntry[0]
+            const numInMaxRange = final.find(n => getNumberRange(n) === maxRange)
+            if (numInMaxRange == null) break
+            const targetRanges = [1, 2, 3, 4, 5]
+              .filter(r => r !== maxRange)
+              .sort((a, b) => (rangeCounts.get(a) ?? 0) - (rangeCounts.get(b) ?? 0))
+            const targetRange = targetRanges[0]
+            const candidates = Array.from({ length: 45 }, (_, i) => i + 1)
+              .filter(n => getNumberRange(n) === targetRange && !final.includes(n) && !excludeNumbers.includes(n))
+            if (candidates.length === 0) break
+            const replacement = candidates[Math.floor(Math.random() * candidates.length)]
+            const index = final.indexOf(numInMaxRange)
+            if (index !== -1) final[index] = replacement
           }
         }
         
@@ -425,13 +437,18 @@ export const generatorRouter = router({
   generatePreset: publicProcedure
     .input(z.object({ preset: z.enum(['balanced', 'aggressive', 'defensive']) }))
     .mutation(async ({ input }) => {
-      const recentResults = await db
-        .select()
-        .from(lottoWinResult)
-        .orderBy(desc(lottoWinResult.draw_date))
-        .limit(100)
+      try {
+        const recentRows = await joinedDraw
+          .orderBy(desc(prizes.draw_date))
+          .limit(100)
+        const recentResults = recentRows.map(mapLottoRow)
 
-      if (input.preset === 'balanced') {
+        // DB에 회차 데이터가 없으면 랜덤 6개 반환
+        if (recentResults.length === 0) {
+          return generateNumbers('custom', { oddEven: [3, 3], sumRange: [80, 200] })
+        }
+
+        if (input.preset === 'balanced') {
         // 균형형: 최근 5주 이내 출현 번호 3개 + 10주 이상 미출현 번호 3개
         const recent5WeeksNumbers = new Set<number>()
         recentResults.slice(0, 5).forEach(r => {
@@ -440,15 +457,13 @@ export const generatorRouter = router({
           recent5WeeksNumbers.add(r.bonus)
         })
         
-        const allResults = await db
-          .select()
-          .from(lottoWinResult)
-          .orderBy(desc(lottoWinResult.draw_date))
+        const allResults = await joinedDraw
+          .orderBy(desc(prizes.draw_date))
           .limit(1000)
         
         const lastSeenIndex = new Map<number, number>()
         allResults.forEach((result, index) => {
-          const nums = (result.numbers as number[]) || []
+          const nums = Array.isArray(result.numbers) ? result.numbers : []
           nums.forEach((num) => {
             if (!lastSeenIndex.has(num)) {
               lastSeenIndex.set(num, index)
@@ -472,7 +487,9 @@ export const generatorRouter = router({
         
         missingNumbersWithIndex.sort((a, b) => b.lastSeenIndex - a.lastSeenIndex)
         const topMissing = missingNumbersWithIndex.slice(0, 10)
+        // 합계 100 이상에 가깝게: 미출현 번호 중 큰 수 우선으로 3개 선택
         const selectedMissing = topMissing
+          .sort((a, b) => b.number - a.number)
           .sort(() => Math.random() - 0.5)
           .slice(0, 3)
           .map(item => item.number)
@@ -488,35 +505,34 @@ export const generatorRouter = router({
           sumRange: [100, 175],
         })
       } else if (input.preset === 'aggressive') {
-        // 공격형: 최근 10주 내 가장 많이 나온 번호 3개 (직전 회차 번호 포함 가능) + 직전 회차 번호 1개 (이미 있으면 건너뜀) + 궁합 번호 2개 (직전 회차 번호 1개가 이미 있으면 건너뜀) + 부족한 번호는 가장 많이 나온 번호로 보충
+        // 대세형: 최근 15주 내 가장 많이 나온 번호 2개 + 궁합 2개 + 직전 회차 1개 + 나머지는 출현 빈도 높은 상위 번호
         const latestAll = [
-          ...((recentResults[0]?.numbers as number[]) || []),
+          ...(recentResults[0]?.numbers || []),
           recentResults[0]?.bonus || 0,
         ].filter(n => n > 0)
         
         const numberCounts = new Map<number, number>()
-        recentResults.slice(0, 10).forEach(r => {
-          const nums = (r.numbers as number[]) || []
+        recentResults.slice(0, 15).forEach(r => {
+          const nums = r.numbers || []
           nums.forEach(n => {
             numberCounts.set(n, (numberCounts.get(n) || 0) + 1)
           })
           numberCounts.set(r.bonus, (numberCounts.get(r.bonus) || 0) + 1)
         })
         
-        // 가장 많이 나온 번호 선택 (직전 회차 번호 포함 가능)
         const allFrequentNumbers = Array.from(numberCounts.entries())
           .sort((a, b) => b[1] - a[1])
           .map(([num]) => num)
         
-        const frequentNumbers = allFrequentNumbers.slice(0, 3)
+        const frequentNumbers = allFrequentNumbers.slice(0, 2)
         
         // 직전 회차 번호 1개 추가 (이미 frequentNumbers에 포함되어 있으면 건너뜀)
         const finalNumbers = new Set<number>(frequentNumbers)
         const latestInFrequent = frequentNumbers.filter(n => latestAll.includes(n))
-        if (latestInFrequent.length === 0) {
+        if (latestInFrequent.length === 0 && latestAll.length > 0) {
           // 직전 회차 번호가 frequentNumbers에 없으면 추가
           const latestOne = latestAll[Math.floor(Math.random() * latestAll.length)]
-          finalNumbers.add(latestOne)
+          if (latestOne >= 1 && latestOne <= 45) finalNumbers.add(latestOne)
         }
         
         // 가장 많이 나온 번호의 궁합 번호 찾기
@@ -573,16 +589,15 @@ export const generatorRouter = router({
           latestRoundNumbers: latestAll, // 직전 회차 번호 목록 전달
         })
       } else if (input.preset === 'defensive') {
-        // 낭만형: 가장 오래 나오지 않은 번호 3개 (직전 회차 번호 포함 가능) + 직전 회차 번호 1개 (이미 있으면 건너뜀) + 궁합 번호 2개 (직전 회차 번호 1개가 이미 있으면 건너뜀) + 부족한 번호는 가장 오래 나오지 않은 번호로 보충
-        const allResults = await db
-          .select()
-          .from(lottoWinResult)
-          .orderBy(desc(lottoWinResult.draw_date))
+        // 낭만형: 가장 오래 나오지 않은 번호 2개 + 그 궁합 2개 + 최근 5주 내 번호 1개, 끝수 같은 건 최대 2개
+        const allRowsDef = await joinedDraw
+          .orderBy(desc(prizes.draw_date))
           .limit(1000)
+        const allResults = allRowsDef.map(mapLottoRow)
         
         const lastSeenIndex = new Map<number, number>()
         allResults.forEach((result, index) => {
-          const nums = (result.numbers as number[]) || []
+          const nums = result.numbers || []
           nums.forEach((num) => {
             if (!lastSeenIndex.has(num)) {
               lastSeenIndex.set(num, index)
@@ -593,13 +608,15 @@ export const generatorRouter = router({
           }
         })
         
-        // 직전 회차 번호 목록
-        const latestAll = [
-          ...((recentResults[0]?.numbers as number[]) || []),
-          recentResults[0]?.bonus || 0,
-        ].filter(n => n > 0)
+        // 최근 5주 내 출현 번호 목록 (1개 포함할 대상)
+        const recent5WeeksNumbers: number[] = []
+        recentResults.slice(0, 5).forEach(r => {
+          const nums = r.numbers || []
+          nums.forEach(n => recent5WeeksNumbers.push(n))
+          recent5WeeksNumbers.push(r.bonus)
+        })
+        const latestAll = [...new Set(recent5WeeksNumbers)].filter(n => n >= 1 && n <= 45)
         
-        // 모든 번호의 lastSeenIndex 계산
         const missingNumbersWithIndex: Array<{ number: number; lastSeenIndex: number }> = []
         for (let i = 1; i <= 45; i++) {
           const lastIndex = lastSeenIndex.get(i)
@@ -609,18 +626,14 @@ export const generatorRouter = router({
           })
         }
         
-        // 가장 오래된 번호 (lastSeenIndex가 큰 순서) - 직전 회차 번호 포함 가능
         missingNumbersWithIndex.sort((a, b) => b.lastSeenIndex - a.lastSeenIndex)
         const allOldestMissing = missingNumbersWithIndex.map(item => item.number)
-        const oldestMissing = allOldestMissing.slice(0, 3)
+        const oldestMissing = allOldestMissing.slice(0, 2)
         
-        // 직전 회차 번호 1개 추가 (이미 oldestMissing에 포함되어 있으면 건너뜀)
         const finalNumbers = new Set<number>(oldestMissing)
-        const latestInOldest = oldestMissing.filter(n => latestAll.includes(n))
-        if (latestInOldest.length === 0) {
-          // 직전 회차 번호가 oldestMissing에 없으면 추가
-          const latestOne = latestAll[Math.floor(Math.random() * latestAll.length)]
-          finalNumbers.add(latestOne)
+        if (latestAll.length > 0) {
+          const recentOne = latestAll[Math.floor(Math.random() * latestAll.length)]
+          finalNumbers.add(recentOne)
         }
         
         // 가장 오래된 번호의 궁합 번호 찾기
@@ -677,8 +690,13 @@ export const generatorRouter = router({
           latestRoundNumbers: latestAll, // 직전 회차 번호 목록 전달
         })
       }
-      
+
       return []
+      } catch (err) {
+        console.error('generatePreset error:', err)
+        // DB/쿼리 오류 시 랜덤 6개 반환
+        return generateNumbers('custom', { oddEven: [3, 3], sumRange: [80, 200] })
+      }
     }),
 
   generateCustom: publicProcedure
@@ -704,10 +722,9 @@ export const generatorRouter = router({
   getLastSeenRounds: publicProcedure
     .input(z.object({ numbers: z.array(z.number()) }))
     .query(async ({ input }) => {
-      const allResults = await db
-        .select()
-        .from(lottoWinResult)
-        .orderBy(desc(lottoWinResult.draw_date))
+      const rows = await joinedDraw
+        .orderBy(desc(prizes.draw_date))
+      const allResults = rows.map(mapLottoRow)
 
       const lastSeenMap = new Map<number, number>()
       let latestRoundId: number | null = null
@@ -717,7 +734,7 @@ export const generatorRouter = router({
       }
 
       allResults.forEach((result) => {
-        const numbers = (result.numbers as number[]) || []
+        const numbers = result.numbers || []
         numbers.forEach((num) => {
           if (input.numbers.includes(num) && !lastSeenMap.has(num)) {
             lastSeenMap.set(num, result.id)

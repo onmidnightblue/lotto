@@ -15,6 +15,8 @@
     "drizzle:generate": "drizzle-kit generate:pg",
     "drizzle:push": "drizzle-kit push",
     "db:seed": "tsx src/lib/db/seed.ts",
+    "db:seed-prizes": "tsx src/lib/db/seed-prizes.ts",
+    "db:seed-stores": "tsx src/lib/db/seed-stores.ts",
     "db:update-patterns": "tsx src/lib/db/update-patterns.ts",
     "db:calculate-combinations": "tsx src/lib/db/calculate-combinations.ts"
   },

@@ -146,12 +146,12 @@ export default function GeneratorView() {
                 >
                   <div className="font-semibold mb-2 pb-2 border-b border-slate-200 w-full">균형형</div>
                   <ul className="text-xs space-y-1 list-disc list-outside pl-4 text-left">
-                    <li>최근 5주 내 나온 번호 3개</li>
-                    <li>10주 이상 나오지 않은 번호 3개</li>
-                    <li>총합 100~175</li>
+                    <li>최근 5주 이내 출현 번호 3개</li>
+                    <li>10주 이상 미출현 번호 3개</li>
+                    <li>총합 100~175 (100 미만이면 미출현 번호 중 큰 수)</li>
                     <li>홀짝 3:3</li>
-                    <li>번호대 3개 이상</li>
-                    <li>연속 숫자 최대 2개</li>
+                    <li>번호대 3개 이상 (같은 번호대 최대 3개)</li>
+                    <li>끝수 합 15~35</li>
                   </ul>
                 </button>
                 <button
@@ -165,10 +165,10 @@ export default function GeneratorView() {
                 >
                   <div className="font-semibold mb-2 pb-2 border-b border-slate-200 w-full">대세형</div>
                   <ul className="text-xs space-y-1 list-disc list-outside pl-4 text-left">
-                    <li>최근 10주 내 가장 많이 나온 번호 3개</li>
+                    <li>최근 15주 내 가장 많이 나온 번호 2개</li>
                     <li>가장 많이 나온 번호의 궁합 번호 2개</li>
                     <li>직전 회차 번호 1개</li>
-                    <li>나머지는 가장 많이 나온 번호로 보충</li>
+                    <li>나머지는 출현 빈도 높은 상위 번호로 구성</li>
                     <li>홀짝 비율: 2:4, 3:3, 4:2</li>
                   </ul>
                 </button>
@@ -183,11 +183,11 @@ export default function GeneratorView() {
                 >
                   <div className="font-semibold mb-2 pb-2 border-b border-slate-200 w-full">낭만형</div>
                   <ul className="text-xs space-y-1 list-disc list-outside pl-4 text-left">
-                    <li>가장 오래 나오지 않은 번호 3개</li>
+                    <li>가장 오래 나오지 않은 번호 2개</li>
                     <li>가장 오래 나오지 않은 번호의 궁합 번호 2개</li>
-                    <li>직전 회차 번호 1개</li>
-                    <li>나머지는 가장 오래 나오지 않은 번호로 보충</li>
+                    <li>최근 5주 내 번호 1개</li>
                     <li>홀짝 비율: 2:4, 3:3, 4:2</li>
+                    <li>끝수 같은 숫자 최대 2개</li>
                   </ul>
                 </button>
               </div>
@@ -203,7 +203,7 @@ export default function GeneratorView() {
                 type="text"
                 value={includeNumbers}
                 onChange={(e) => setIncludeNumbers(e.target.value)}
-                placeholder="예: 1, 5, 10"
+                placeholder="1, 5, 10"
                 className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
               />
             </div>
@@ -216,7 +216,7 @@ export default function GeneratorView() {
                 type="text"
                 value={excludeNumbers}
                 onChange={(e) => setExcludeNumbers(e.target.value)}
-                placeholder="예: 13, 27"
+                placeholder="13, 27"
                 className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
               />
             </div>
