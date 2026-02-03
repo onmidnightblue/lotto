@@ -351,13 +351,17 @@ export default function HistorySearch() {
                         return (
                           <span
                             key={num}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-                              isHighlighted
-                                ? 'bg-yellow-400 text-slate-900 ring-2 ring-yellow-500'
-                                : getBallColorClass(num)
-                            }`}
+                            className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${getBallColorClass(num)}`}
                           >
                             {num}
+                            {isHighlighted && (
+                              <span
+                                className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-slate-700 text-white text-[10px] font-bold leading-none"
+                                aria-hidden
+                              >
+                                ✓
+                              </span>
+                            )}
                           </span>
                         )
                       })}
@@ -365,13 +369,17 @@ export default function HistorySearch() {
                     <span className="text-sm text-slate-500 ml-2">
                       +{' '}
                       <span
-                        className={`px-2 py-1 rounded font-semibold ${
-                          highlightNumber(bonus, parseNumbers(searchNumbers))
-                            ? 'bg-yellow-400 text-slate-900'
-                            : getBallColorClass(bonus)
-                        }`}
+                        className={`relative inline-flex items-center justify-center px-2 py-1 rounded font-semibold ${getBallColorClass(bonus)}`}
                       >
                         {bonus}
+                        {highlightNumber(bonus, parseNumbers(searchNumbers)) && (
+                          <span
+                            className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-slate-700 text-white text-[10px] font-bold leading-none"
+                            aria-hidden
+                          >
+                            ✓
+                          </span>
+                        )}
                       </span>
                     </span>
                   </div>

@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { prizes, numbers } from '@/lib/db/schema'
 import { mapLottoRow, formatDateToYmd } from '@/lib/db/mapLottoRow'
 import { computeAll } from '@/lib/db/computeNumbers'
-import { eq, desc, asc, gte, lte, and, sql } from 'drizzle-orm'
+import { eq, desc, asc, gte, lte, and, inArray, sql } from 'drizzle-orm'
 
 // prizes + numbers 조인 쿼리 (공통)
 const joinedDraw = db
@@ -76,10 +76,20 @@ export const lottoRouter = router({
       }
 
       if (input.numbers && input.numbers.length > 0) {
-        const perNum = input.numbers.map((num) =>
-          sql`((${numbers.numbers}::jsonb @> ${sql.raw(JSON.stringify([num]))}::jsonb) OR (${numbers.bonus} = ${num}))`
-        )
-        conditions.push(and(...perNum) as any)
+        // 번호 조건: numbers 테이블 전체 조회 후 애플리케이션에서 필터 (DB json 타입/캐스팅 이슈 회피)
+        const allNumberRows = await db
+          .select({ round: numbers.round, numbers: numbers.numbers, bonus: numbers.bonus })
+          .from(numbers)
+        const rounds = allNumberRows
+          .filter((r) => {
+            const nums = Array.isArray(r.numbers) ? r.numbers : []
+            return input.numbers!.every((n) => nums.includes(n) || r.bonus === n)
+          })
+          .map((r) => r.round)
+        if (rounds.length === 0) {
+          return { results: [], total: 0 }
+        }
+        conditions.push(inArray(prizes.round, rounds))
       }
 
       if (input.prizeAmount) {
@@ -198,9 +208,11 @@ export const lottoRouter = router({
       const tenYearsAgo = new Date()
       tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10)
       const ymdStart = formatDateToYmd(tenYearsAgo)
+      // 10년치 회차 전부 조회 (주 1회 기준 약 520회, 상한 6000회)
       const draws = await joinedDraw
         .where(gte(prizes.draw_date, ymdStart))
         .orderBy(asc(prizes.draw_date))
+        .limit(6000)
       if (draws.length === 0) {
         return { drawCount: 0, totalSpent: 0, totalWon: 0, profit: 0, wins: [] as { round: number; rank: number; prize: number; date: string; numbers: number[]; bonus?: number }[] }
       }

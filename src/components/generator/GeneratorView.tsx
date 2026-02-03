@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { trpc } from '@/components/TrpcProvider'
 import { getBallColorClass } from '@/lib/utils/ballColors'
 
@@ -34,6 +34,13 @@ export default function GeneratorView() {
   const [sumMax, setSumMax] = useState<number>(200)
   
   const [generatedSets, setGeneratedSets] = useState<GeneratedNumberSet[]>([])
+  const [copyToast, setCopyToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  useEffect(() => {
+    if (!copyToast) return
+    const t = setTimeout(() => setCopyToast(null), 3000)
+    return () => clearTimeout(t)
+  }, [copyToast])
 
   const generatePreset = trpc.generator.generatePreset.useMutation()
   const generateCustom = trpc.generator.generateCustom.useMutation()
@@ -337,12 +344,30 @@ export default function GeneratorView() {
             <h2 className="text-xl font-semibold">
               생성된 번호 목록 <span className="text-sm font-normal text-slate-500">{generatedSets.length}개</span>
             </h2>
-            <button
-              onClick={() => setGeneratedSets([])}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
-            >
-              모두 삭제
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const text = generatedSets
+                    .map((set) => set.numbers.join(' '))
+                    .join('\n')
+                  navigator.clipboard.writeText(text).then(
+                    () => setCopyToast({ message: '번호 목록이 클립보드에 복사되었습니다.', type: 'success' }),
+                    () => setCopyToast({ message: '복사에 실패했습니다.', type: 'error' })
+                  )
+                }}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+              >
+                복사
+              </button>
+              <button
+                type="button"
+                onClick={() => setGeneratedSets([])}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+              >
+                모두 삭제
+              </button>
+            </div>
           </div>
           <div className="space-y-4">
             {generatedSets.map((set) => (
@@ -353,6 +378,19 @@ export default function GeneratorView() {
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {copyToast && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-in fade-in duration-200"
+          style={{
+            backgroundColor: copyToast.type === 'success' ? '#0f766e' : '#b91c1c',
+            color: '#fff',
+          }}
+          role="status"
+        >
+          {copyToast.message}
         </div>
       )}
     </div>
