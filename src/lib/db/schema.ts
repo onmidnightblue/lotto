@@ -1,23 +1,81 @@
-import { pgTable, serial, integer, bigint, text, varchar, json, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, serial, integer, bigint, text, json, timestamp, doublePrecision, primaryKey } from 'drizzle-orm/pg-core'
 
-// LottoWinResult: stores each draw (id = 회차 번호)
-export const lottoWinResult = pgTable('lotto_win_result', {
-  id: serial('id').primaryKey(), // 회차 번호와 동일하게 사용 (insert 시 id 지정)
-  draw_date: timestamp('draw_date').notNull(),
-  numbers: json('numbers').$type<number[]>(),
-  bonus: integer('bonus').notNull(),
-  prize_amount: bigint('prize_amount', { mode: 'number' }), // 1등 당첨 금액 (원 단위)
-  winner_count: integer('winner_count'), // 당첨자 수
-  odd_even: json('odd_even').$type<{ odd: number; even: number }>(), // 홀짝 분포
-  high_low: json('high_low').$type<{ high: number; low: number }>(), // 고저 분포 (23 이상/미만)
-  total_sum: integer('total_sum'), // 총합
-  created_at: timestamp('created_at').defaultNow(),
+// ========== prizes (prizes.json) ==========
+// round, draw_date, count_auto/manual/semi, count_1st~5st, prize_1st~5st, sum_prize_1st~5st, total_winner_count, total_round_sales
+export const prizes = pgTable('prizes', {
+  round: integer('round').primaryKey(),
+  draw_date: text('draw_date').notNull(),
+  count_auto: integer('count_auto').default(0),
+  count_manual: integer('count_manual').default(0),
+  count_semi: integer('count_semi').default(0),
+  count_1st: integer('count_1st').default(0),
+  prize_1st: bigint('prize_1st', { mode: 'number' }),
+  sum_prize_1st: bigint('sum_prize_1st', { mode: 'number' }),
+  count_2nd: integer('count_2nd').default(0),
+  prize_2nd: bigint('prize_2nd', { mode: 'number' }),
+  sum_prize_2nd: bigint('sum_prize_2nd', { mode: 'number' }),
+  count_3rd: integer('count_3rd').default(0),
+  prize_3rd: bigint('prize_3rd', { mode: 'number' }),
+  sum_prize_3rd: bigint('sum_prize_3rd', { mode: 'number' }),
+  count_4th: integer('count_4th').default(0),
+  prize_4th: bigint('prize_4th', { mode: 'number' }),
+  sum_prize_4th: bigint('sum_prize_4th', { mode: 'number' }),
+  count_5st: integer('count_5st').default(0),
+  prize_5st: bigint('prize_5st', { mode: 'number' }),
+  sum_prize_5st: bigint('sum_prize_5st', { mode: 'number' }),
+  total_winner_count: integer('total_winner_count'),
+  total_round_sales: bigint('total_round_sales', { mode: 'number' }),
 })
 
-// AnalysisResult: stores generated analysis results (JSON)
+// ========== numbers (from prizes.json: ltEpsd, tm1~6WnNo, bnsWnNo + 계산) ==========
+// round, numbers[], bonus, odd_even, high_low, sum, sections, end_sum
+export const numbers = pgTable('numbers', {
+  round: integer('round')
+    .primaryKey()
+    .references(() => prizes.round),
+  numbers: json('numbers').$type<number[]>().notNull(),
+  bonus: integer('bonus').notNull(),
+  odd_even: json('odd_even').$type<{ odd: number; even: number }>(),
+  high_low: json('high_low').$type<{ high: number; low: number }>(),
+  sum: integer('sum'),
+  sections: json('sections').$type<Record<string, number>>(), // e.g. {"10": 2, "20": 1, "30": 3}
+  end_sum: integer('end_sum'), // 끝수 합 (일의 자리 합)
+})
+
+// ========== stores (stores.csv) ==========
+// PK = (round, rnum)
+export const stores = pgTable(
+  'stores',
+  {
+    round: integer('round')
+      .notNull()
+      .references(() => prizes.round),
+    rnum: integer('rnum').notNull(),
+    store_name: text('store_name').notNull(),
+    store_tel: text('store_tel'),
+    region: text('region'),
+    address_part1: text('address_part1'),
+    address_part2: text('address_part2'),
+    address_part3: text('address_part3'),
+    address_part4: text('address_part4'),
+    full_address: text('full_address'),
+    auto_win_type: text('auto_win_type'),
+    store_id: text('store_id'),
+    store_status: text('store_status'),
+    sell_lotto: text('sell_lotto'),
+    rank: integer('rank').default(1),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.round, table.rnum] }),
+  })
+)
+
+// ========== 기존 테이블 (분석/조합 등) ==========
 export const analysisResult = pgTable('analysis_result', {
   id: serial('id').primaryKey(),
-  analysis_type: text('analysis_type').notNull(), // 'combination' (동반/궁합/원수)
+  analysis_type: text('analysis_type').notNull(),
   result: json('result').$type<{
     triple?: Array<{ combination: number[]; count: number }>
     quadruple?: Array<{ combination: number[]; count: number }>
@@ -27,7 +85,6 @@ export const analysisResult = pgTable('analysis_result', {
   created_at: timestamp('created_at').defaultNow(),
 })
 
-// UserActivityLog: simple audit log
 export const userActivityLog = pgTable('user_activity_log', {
   id: serial('id').primaryKey(),
   user_id: text('user_id'),
@@ -36,35 +93,13 @@ export const userActivityLog = pgTable('user_activity_log', {
   created_at: timestamp('created_at').defaultNow(),
 })
 
-// CombinationStats: stores pre-calculated combination statistics
 export const combinationStats = pgTable('combination_stats', {
   id: serial('id').primaryKey(),
-  type: text('type').notNull(), // 'triple', 'quadruple', 'pair-affinity', 'pair-conflict'
-  numbers: json('numbers').$type<number[]>().notNull(), // 조합 번호 배열
-  count: integer('count').notNull(), // 출현 횟수
-  rank: integer('rank').notNull(), // 순위 (1부터 시작)
-  rounds: json('rounds').$type<number[]>(), // 해당 조합이 나온 회차 ID 배열
+  type: text('type').notNull(),
+  numbers: json('numbers').$type<number[]>().notNull(),
+  count: integer('count').notNull(),
+  rank: integer('rank').notNull(),
+  rounds: json('rounds').$type<number[]>(),
   created_at: timestamp('created_at').defaultNow(),
 })
 
-// 등수별 당첨금
-export const lottoPrizeStats = pgTable('lotto_prize_stats', {
-  id: serial('id').primaryKey(),
-  draw_id: integer('draw_id').references(() => lottoWinResult.id),
-  rank: integer('rank').notNull(), // 1, 2, 3, 4, 5등
-  prize_per_person: bigint('prize_per_person', { mode: 'number' }).notNull(),
-  winner_count: integer('winner_count').notNull(),
-  total_prize: bigint('total_prize', { mode: 'number' }),
-  created_at: timestamp('created_at').defaultNow(),
-})
-
-// 당첨 판매점 정보
-export const lottoWinningStores = pgTable('lotto_winning_stores', {
-  id: serial('id').primaryKey(),
-  draw_id: integer('draw_id').references(() => lottoWinResult.id),
-  rank: integer('rank').default(1), // 주로 1, 2등 판매점
-  store_name: text('store_name').notNull(),
-  location: text('location'),
-  method: varchar('method', { length: 10 }), // 수동, 자동, 반자동
-  created_at: timestamp('created_at').defaultNow(),
-})

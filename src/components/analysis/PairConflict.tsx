@@ -61,7 +61,7 @@ export default function PairConflict() {
             type="text"
             value={searchNumbers}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="번호 검색 (예: 1, 5, 10)"
+            placeholder="1, 5, 10"
             className="px-3 py-1.5 border border-slate-300 rounded-md text-sm w-48 focus:outline-none focus:ring-2 focus:ring-slate-500"
           />
         </div>

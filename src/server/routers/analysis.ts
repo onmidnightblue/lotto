@@ -1,24 +1,32 @@
 import { z } from 'zod'
 import { router, publicProcedure } from '../trpc'
 import { db } from '@/lib/db'
-import { lottoWinResult, combinationStats } from '@/lib/db/schema'
-import { desc, asc, eq, and, or, gte, lte } from 'drizzle-orm'
+import { prizes, numbers, combinationStats } from '@/lib/db/schema'
+import { parseDrawDate } from '@/lib/db/mapLottoRow'
+import { desc, asc, eq, and, gte, lte } from 'drizzle-orm'
+
+const joinedDrawForAnalysis = db
+  .select({ round: numbers.round, draw_date: prizes.draw_date, numbers: numbers.numbers, bonus: numbers.bonus })
+  .from(numbers)
+  .innerJoin(prizes, eq(numbers.round, prizes.round))
+
+function numbersFromRow(row: { numbers: number[] | null }): number[] {
+  return Array.isArray(row.numbers) ? row.numbers : []
+}
 
 export const analysisRouter = router({
   missingRange: publicProcedure
     .input(z.object({ weeks: z.number().min(1).max(52).default(3) }))
     .query(async ({ input }) => {
-      const results = await db
-        .select()
-        .from(lottoWinResult)
-        .orderBy(desc(lottoWinResult.draw_date))
+      const results = await joinedDrawForAnalysis
+        .orderBy(desc(prizes.draw_date))
         .limit(100)
 
       const numberCounts = new Map<number, number>()
       const lastSeen = new Map<number, number>()
 
       results.forEach((result, index) => {
-        const numbers = (result.numbers as number[]) || []
+        const numbers = numbersFromRow(result)
         numbers.forEach((num) => {
           numberCounts.set(num, (numberCounts.get(num) || 0) + 1)
           lastSeen.set(num, index)
@@ -152,18 +160,15 @@ export const analysisRouter = router({
       })
     )
     .query(async ({ input }) => {
-      // 항상 최신순으로 정렬해서 가져오기 (최근 n주를 올바르게 선택하기 위해)
-      const allResults = await db
-        .select()
-        .from(lottoWinResult)
-        .orderBy(desc(lottoWinResult.draw_date))
+      const allResults = await joinedDrawForAnalysis
+        .orderBy(desc(prizes.draw_date))
 
       // 최근 n주에 해당하는 회차 수 계산 (n주 = n회차)
       const recentDraws = allResults.slice(0, input.weeks)
       const recentNumbers = new Set<number>()
 
       recentDraws.forEach((result) => {
-        const numbers = (result.numbers as number[]) || []
+        const numbers = numbersFromRow(result)
         numbers.forEach((num) => recentNumbers.add(num))
         recentNumbers.add(result.bonus)
       })
@@ -172,20 +177,20 @@ export const analysisRouter = router({
       const lastSeen = new Map<number, { drawId: number; drawDate: Date }>()
 
       allResults.forEach((result) => {
-        const numbers = (result.numbers as number[]) || []
+        const numbers = numbersFromRow(result)
+        const drawDate = parseDrawDate(result.draw_date)
         numbers.forEach((num) => {
-          // 최신순으로 순회하므로, 처음 나오는 것이 가장 최근 회차
           if (!lastSeen.has(num)) {
             lastSeen.set(num, {
-              drawId: result.id,
-              drawDate: new Date(result.draw_date),
+              drawId: result.round,
+              drawDate,
             })
           }
         })
         if (!lastSeen.has(result.bonus)) {
           lastSeen.set(result.bonus, {
-            drawId: result.id,
-            drawDate: new Date(result.draw_date),
+            drawId: result.round,
+            drawDate,
           })
         }
       })

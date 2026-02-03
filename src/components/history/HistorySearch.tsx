@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { trpc } from '@/components/TrpcProvider'
 import { getBallColorClass } from '@/lib/utils/ballColors'
 
+const PAGE_SIZE = 20
+
 export default function HistorySearch() {
   const [searchNumbers, setSearchNumbers] = useState<string>('')
   const [period, setPeriod] = useState<'all' | '1year' | '6months' | '3months' | '1month'>('all')
@@ -11,6 +13,7 @@ export default function HistorySearch() {
   const [winnerCount, setWinnerCount] = useState<'10명이하' | '10명대' | '20명대' | '30명대' | undefined>(undefined)
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'prize-desc' | 'prize-asc' | 'winner-desc' | 'winner-asc'>('date-desc')
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false)
+  const [page, setPage] = useState(1)
   const sortDropdownRef = useRef<HTMLDivElement>(null)
 
   const parseNumbers = (input: string): number[] => {
@@ -42,8 +45,18 @@ export default function HistorySearch() {
     prizeAmount: prizeAmount,
     winnerCount: winnerCount,
     sortBy,
-    limit: 100,
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
   })
+
+  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 0
+  const startItem = data && data.total > 0 ? (page - 1) * PAGE_SIZE + 1 : 0
+  const endItem = data ? Math.min(page * PAGE_SIZE, data.total) : 0
+
+  // 필터/정렬 변경 시 1페이지로
+  useEffect(() => {
+    setPage(1)
+  }, [period, prizeAmount, winnerCount, sortBy, searchNumbers])
 
   const highlightNumber = (num: number, targetNumbers: number[]) => {
     if (targetNumbers.length === 0) return false
@@ -61,7 +74,7 @@ export default function HistorySearch() {
             type="text"
             value={searchNumbers}
             onChange={(e) => setSearchNumbers(e.target.value)}
-            placeholder="예: 1, 5, 10, 15, 20, 25"
+            placeholder="1, 5, 10, 15, 20, 25"
             className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
           />
           {numbers.length > 0 && (
@@ -249,7 +262,14 @@ export default function HistorySearch() {
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-semibold">검색 결과</h2>
             {data && (
-              <span className="text-sm text-slate-500">총 {data.total}개</span>
+              <span className="text-sm text-slate-500">
+                총 {data.total}개
+                {data.total > 0 && (
+                  <span className="text-slate-400 ml-1">
+                    ({startItem}–{endItem}번째)
+                  </span>
+                )}
+              </span>
             )}
           </div>
           <div className="relative" ref={sortDropdownRef}>
@@ -363,13 +383,57 @@ export default function HistorySearch() {
                         <span className="font-semibold text-slate-900">
                           {Math.round(result.prize_amount / 100000000)}억원
                         </span>
-                        을 수령했습니다.
+                        을 수령
                       </span>
                     </div>
                   )}
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {data && data.total > PAGE_SIZE && (
+          <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                첫 페이지
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                이전
+              </button>
+            </div>
+            <div className="text-sm text-slate-600">
+              {page} / {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                다음
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                마지막 페이지
+              </button>
+            </div>
           </div>
         )}
       </div>
