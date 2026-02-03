@@ -202,13 +202,13 @@ export const lottoRouter = router({
       z.object({
         numbers: z.array(z.number().min(1).max(45)).length(6),
         bonus: z.number().min(1).max(45).optional(),
+        years: z.union([z.literal(1), z.literal(3), z.literal(5), z.literal(10)]).default(10),
       })
     )
     .query(async ({ input }) => {
-      const tenYearsAgo = new Date()
-      tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10)
-      const ymdStart = formatDateToYmd(tenYearsAgo)
-      // 10년치 회차 전부 조회 (주 1회 기준 약 520회, 상한 6000회)
+      const startDate = new Date()
+      startDate.setFullYear(startDate.getFullYear() - input.years)
+      const ymdStart = formatDateToYmd(startDate)
       const draws = await joinedDraw
         .where(gte(prizes.draw_date, ymdStart))
         .orderBy(asc(prizes.draw_date))

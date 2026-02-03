@@ -352,7 +352,7 @@ export default function GeneratorView() {
                     .map((set) => set.numbers.join(' '))
                     .join('\n')
                   navigator.clipboard.writeText(text).then(
-                    () => setCopyToast({ message: '번호 목록이 클립보드에 복사되었습니다.', type: 'success' }),
+                    () => setCopyToast({ message: '복사완료', type: 'success' }),
                     () => setCopyToast({ message: '복사에 실패했습니다.', type: 'error' })
                   )
                 }}
@@ -383,14 +383,11 @@ export default function GeneratorView() {
 
       {copyToast && (
         <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-in fade-in duration-200"
-          style={{
-            backgroundColor: copyToast.type === 'success' ? '#0f766e' : '#b91c1c',
-            color: '#fff',
-          }}
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex flex-col items-center justify-center gap-2 w-28 h-28 rounded-xl shadow-lg text-slate-900 bg-slate-200 animate-in fade-in duration-200"
           role="status"
         >
-          {copyToast.message}
+          <span className="text-3xl font-bold leading-none" aria-hidden>✓</span>
+          <span className="text-sm font-medium">{copyToast.message}</span>
         </div>
       )}
     </div>

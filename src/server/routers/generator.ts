@@ -128,15 +128,32 @@ function generateNumbers(
       const temp = Array.from(result)
       temp.push(num)
       
-      // 중간 단계에서는 가능성만 체크
+      let isValid = true
+      
+      // 균형형: 매 단계에서 번호대 4개 이상 방지 (한 번호대당 최대 3개)
+      if (preset === 'balanced') {
+        const rangeCounts = new Map<number, number>()
+        temp.forEach(n => {
+          const r = getNumberRange(n)
+          rangeCounts.set(r, (rangeCounts.get(r) || 0) + 1)
+        })
+        if (Array.from(rangeCounts.values()).some(count => count >= 4)) {
+          isValid = false
+        }
+        if (countConsecutive(temp) > 2) {
+          isValid = false
+        }
+      }
+      
+      // 중간 단계(6개 미만)에서는 균형형 번호대/연속만 체크 후 통과
       if (temp.length < 6) {
-        result.add(num)
+        if (isValid) {
+          result.add(num)
+        }
         continue
       }
       
-      // 6개가 되었을 때만 전체 조건 체크
-      let isValid = true
-      
+      // 6개가 되었을 때 전체 조건 체크
       // 홀짝 비율 체크
       if (options?.oddEven) {
         const odd = temp.filter(n => n % 2 === 1).length
@@ -154,7 +171,7 @@ function generateNumbers(
         }
       }
       
-      // 균형형: 번호대 분산, 끝수 합 15~35
+      // 균형형: 6개일 때 번호대 3개 이상, 끝수 합 15~35
       if (preset === 'balanced') {
         const ranges = new Set(temp.map(getNumberRange))
         if (ranges.size < 3) {
@@ -166,9 +183,6 @@ function generateNumbers(
           rangeCounts.set(r, (rangeCounts.get(r) || 0) + 1)
         })
         if (Array.from(rangeCounts.values()).some(count => count >= 4)) {
-          isValid = false
-        }
-        if (countConsecutive(temp) > 2) {
           isValid = false
         }
         const endDigitSum = temp.reduce((a, b) => a + (b % 10), 0)
